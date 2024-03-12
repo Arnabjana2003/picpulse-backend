@@ -4,17 +4,25 @@ import ApiResponse from "../utils/apiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 
 const createUser = asyncHandler(async (req, res) => {
-    console.log(req.body)
-  const { fullName, mobile,  password, dob, gender } = req.body;
-  console.log('fullname:',fullName,"mobile",mobile,"password",password,dob,gender);
+  console.log(req.body);
+  const { fullName, mobile, password, dob, gender } = req.body;
+  console.log(
+    "fullname:",
+    fullName,
+    "mobile",
+    mobile,
+    "password",
+    password,
+    dob,
+    gender
+  );
 
   if (!fullName || !mobile || !password || !dob || !gender)
     throw new ApiError(400, "All fields are required");
 
-  const isExistedUser = await User.findOne({mobile
-  });
+  const isExistedUser = await User.findOne({ mobile });
 
-  console.log("isExist :", isExistedUser)
+  console.log("isExist :", isExistedUser);
   if (isExistedUser) throw new ApiError(400, "User already exist");
 
   const user = await User.create({
@@ -38,7 +46,7 @@ const loginUser = asyncHandler(async (req, res) => {
   if (!mobile || !password)
     throw new ApiError(404, "Mobile and password is required");
 
-  const user = await User.findOne({mobile});
+  const user = await User.findOne({ mobile });
   if (!user) throw new ApiError(404, "User not exist");
 
   const token = user.generateAccessToken();
@@ -62,64 +70,316 @@ const loginUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, "Login successfull", loginDetails));
 });
 
-const logout = asyncHandler(async(req,res)=>{
-  const userId = req.userData?._id
-  if(!userId) throw new ApiError(404,"User id needed")
+const logout = asyncHandler(async (req, res) => {
+  const userId = req.userData?._id;
+  if (!userId) throw new ApiError(404, "User id needed");
 
-  await User.findOneAndUpdate({_id:userId},{accessToken:undefined})
-  console.log(User)
+  await User.findOneAndUpdate({ _id: userId }, { accessToken: undefined });
+  console.log(User);
 
   return res
-  .status(201)
-  .clearCookie("accessToken","",{httpOnly:true,secure:true})
-  .json(new ApiResponse(200,"Logged out successfully",{}))
-})
+    .status(201)
+    .clearCookie("accessToken", "", { httpOnly: true, secure: true })
+    .json(new ApiResponse(200, "Logged out successfully", {}));
+});
 
-const currentUser = asyncHandler(async(req,res)=>{
+const currentUser = asyncHandler(async (req, res) => {
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "User found", { data: req.userData }));
+});
+
+const updateProfileImage = asyncHandler(async (req, res) => {
+  if (!req.userData) throw new ApiError(404, "user id not found");
+  const { profileImageLink, profileImageId } = req.body;
+  if (!(profileImageLink && profileImageId))
+    throw new ApiError(400, "image link and id needed");
+
+  await User.findOneAndUpdate(
+    { _id: req.userData._id },
+    { profileImageLink, profileImageId }
+  );
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Photo updated successfully"), {});
+});
+
+const deleteProfileImage = asyncHandler(async (req, res) => {
+  if (!req.userData) throw new ApiError(404, "user id not found");
+
+  await User.findOneAndUpdate(
+    { _id: req.userData._id },
+    { profileImageLink: undefined, profileImageId: undefined }
+  );
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Photo updated successfully"), {});
+});
+
+const updateCoverImage = asyncHandler(async (req, res) => {
+  if (!req.userData) throw new ApiError(404, "user id not found");
+  const { coverImageLink, coverImageId } = req.body;
+  if (!(coverImageLink && coverImageId))
+    throw new ApiError(400, "image link and id needed");
+
+  await User.findOneAndUpdate(
+    { _id: req.userData._id },
+    { coverImageLink, coverImageId }
+  );
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Photo updated successfully"), {});
+});
+
+const deleteCoverImage = asyncHandler(async (req, res) => {
+  if (!req.userData) throw new ApiError(404, "user id not found");
+
+  await User.findOneAndUpdate(
+    { _id: req.userData._id },
+    { coverImageLink: undefined, coverImageId: undefined }
+  );
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Photo updated successfully"), {});
+});
+
+const getFeeds = asyncHandler(async (req, res) => {
+  console.log("userid",req.userData?._id,"done")
+  const feeds = await User.aggregate([
+    {
+      $match: {
+        _id: req.userData?._id,
+      },
+    },
+    {
+      $lookup: {
+        from: "friends",
+        foreignField: "sentBy",
+        localField: "_id",
+        as: "friendsByUser",
+        pipeline:[
+          {
+            $match:{status: "Accepted"}
+          },
+          {$project:{
+            sentTo:1
+          }}
+        ]
+      },
+    },
+    {
+      $lookup: {
+        from: "friends",
+        foreignField: "sentTo",
+        localField: "_id",
+        as: "friendsToUser",
+        pipeline:[
+          {
+            $match:{status: "Accepted"}
+          }
+        ]
+      },
+    },
+    {
+      $lookup:{
+        from: "posts",
+        foreignField: "userId",
+        localField: "friendsByUser.sentTo",
+        as:"posts1",
+        pipeline:[
+          {
+            $lookup:{
+              from: "users",
+              foreignField: "_id",
+              localField: "userId",
+              as:"owner",
+              pipeline:[
+                {
+                  $project: {
+                    fullName:1,
+                    gender:1,
+                    profileImageLink:1
+                  }
+                },
+              ]
+            }
+          },
+          {
+                  $addFields:{
+                    owner: {
+                      $arrayElemAt: ["$owner",0]
+                    }
+                  }
+                },
+          {
+            $lookup:{
+              from:"likes",
+              foreignField: "post",
+              localField: "_id",
+              as: "likes"
+            }
+          },
+          {
+            $addFields:{
+              likesCount: {$size: "$likes"},
+              isLiked: {
+                $cond:{
+                  if: {$in:[req.userData?._id,"$likes"]},
+                  then: true,
+                  else: false
+                }
+              }
+            }
+          },
+          {
+            $project:{
+              likes:0
+            }
+          }
+        ]
+      }
+    },
+    {
+      $lookup:{
+        from: "posts",
+        foreignField: "userId",
+        localField: "friendsToUser.sentBy",
+        as:"posts2",
+        pipeline:[
+          {
+            $lookup:{
+              from: "users",
+              foreignField: "_id",
+              localField: "userId",
+              as:"owner",
+              pipeline:[
+                {
+                  $project: {
+                    fullName:1,
+                    gender:1,
+                    profileImageLink:1
+                  }
+                },
+              ]
+            }
+          },
+          {
+                  $addFields:{
+                    owner: {
+                      $arrayElemAt: ["$owner",0]
+                    }
+                  }
+                },
+          {
+            $lookup:{
+              from:"likes",
+              foreignField: "post",
+              localField: "_id",
+              as: "likes"
+            }
+          },
+          {
+            $addFields:{
+              likesCount: {$size: "$likes"},
+              isLiked: {
+                $cond:{
+                  if: {$in:[req.userData?._id,"$likes"]},
+                  then: true,
+                  else: false
+                }
+              }
+            }
+          },
+          {
+            $project:{
+              likes:0
+            }
+          }
+        ]
+      }
+    },
+    {
+      $lookup:{
+        from: "posts",
+        foreignField: "userId",
+        localField: "_id",
+        as:"posts3",
+        pipeline:[
+          {
+            $lookup:{
+              from: "users",
+              foreignField: "_id",
+              localField: "userId",
+              as:"owner",
+              pipeline:[
+                {
+                  $project: {
+                    fullName:1,
+                    gender:1,
+                    profileImageLink:1
+                  }
+                },
+              ]
+            }
+          },
+          {
+                  $addFields:{
+                    owner: {
+                      $arrayElemAt: ["$owner",0]
+                    }
+                  }
+                },
+          {
+            $lookup:{
+              from:"likes",
+              foreignField: "post",
+              localField: "_id",
+              as: "likes"
+            }
+          },
+          {
+            $addFields:{
+              likesCount: {$size: "$likes"},
+              isLiked: {
+                $cond:{
+                  if: {$in:[req.userData?._id,"$likes.user"]},
+                  then: true,
+                  else: false
+                }
+              }
+            }
+          },
+          {
+            $project:{
+              likes: 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      $addFields:{
+        feeds: {$concatArrays: ["$posts1","$posts2","$posts3"]}
+      }
+    },
+    {
+      $project: {
+        feeds:1
+      }
+    },
+  ]);
   return res
   .status(200)
-  .json(new ApiResponse(200,"User found",{data:req.userData}))
-})
-
-const updateProfileImage = asyncHandler(async(req,res)=>{
-  if(!req.userData) throw new ApiError(404,"user id not found")
-  const {profileImageLink,profileImageId} = req.body
-if(!(profileImageLink && profileImageId)) throw new ApiError(400,"image link and id needed");
-
-  await User.findOneAndUpdate({_id:req.userData._id},{profileImageLink,profileImageId})
-  return res
-  .status(200)
-  .json(new ApiResponse(200,"Photo updated successfully"),{})
-})
-
-const deleteProfileImage = asyncHandler(async(req,res)=>{
-  if(!req.userData) throw new ApiError(404,"user id not found")
-  
-  await User.findOneAndUpdate({_id:req.userData._id},{profileImageLink:undefined,profileImageId:undefined})
-  return res
-  .status(200)
-  .json(new ApiResponse(200,"Photo updated successfully"),{})
-})
-
-
-const updateCoverImage = asyncHandler(async(req,res)=>{
-  if(!req.userData) throw new ApiError(404,"user id not found")
-  const {coverImageLink,coverImageId} = req.body
-if(!(coverImageLink && coverImageId)) throw new ApiError(400,"image link and id needed");
-
-await User.findOneAndUpdate({_id:req.userData._id},{coverImageLink,coverImageId})
-return res
-.status(200)
-.json(new ApiResponse(200,"Photo updated successfully"),{})
-})
-
-
-const deleteCoverImage = asyncHandler(async(req,res)=>{
-  if(!req.userData) throw new ApiError(404,"user id not found")
-  
-  await User.findOneAndUpdate({_id:req.userData._id},{coverImageLink:undefined,coverImageId:undefined})
-  return res
-  .status(200)
-  .json(new ApiResponse(200,"Photo updated successfully"),{})
-})
-export { createUser, loginUser,logout,currentUser,updateProfileImage,deleteProfileImage,updateCoverImage,deleteCoverImage};
+  .json(new ApiResponse(200,"Feeds fetched successfully",feeds[0]))
+});
+export {
+  createUser,
+  loginUser,
+  logout,
+  currentUser,
+  updateProfileImage,
+  deleteProfileImage,
+  updateCoverImage,
+  deleteCoverImage,
+  getFeeds
+};
