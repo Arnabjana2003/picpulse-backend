@@ -9,7 +9,6 @@ const likeSchema = new Schema({
   post: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Post',
-    required: true
   },
   comment: {
     type: mongoose.Schema.Types.ObjectId,
@@ -17,6 +16,6 @@ const likeSchema = new Schema({
   }
 }, { timestamps: true });
 
-const Like = mongoose.model('Like', likeSchema);
+const Like = mongoose.model("Like", likeSchema);
 
 export default Like

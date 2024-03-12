@@ -5,22 +5,21 @@ import asyncHandler from "../utils/asyncHandler.js";
 
 const createUser = asyncHandler(async (req, res) => {
     console.log(req.body)
-  const { fullName, mobile, email, password, dob, gender } = req.body;
-  console.log('fullname:',fullName,"mobile",mobile,"email",email,"password",password,dob,gender);
+  const { fullName, mobile,  password, dob, gender } = req.body;
+  console.log('fullname:',fullName,"mobile",mobile,"password",password,dob,gender);
 
-  if (!fullName || !(mobile || email) || !password || !dob || !gender)
+  if (!fullName || !mobile || !password || !dob || !gender)
     throw new ApiError(400, "All fields are required");
 
-  const isExistedUser = await User.findOne({
-    $or: [{ email }, { mobile }],
+  const isExistedUser = await User.findOne({mobile
   });
 
+  console.log("isExist :", isExistedUser)
   if (isExistedUser) throw new ApiError(400, "User already exist");
 
   const user = await User.create({
     fullName,
-    mobile: mobile || null,
-    email: email || null,
+    mobile,
     password,
     dob,
     gender,
@@ -35,13 +34,11 @@ const createUser = asyncHandler(async (req, res) => {
 });
 
 const loginUser = asyncHandler(async (req, res) => {
-  const { email, mobile, password } = req.body;
-  if (!(email || mobile) || !password)
-    throw new ApiError(404, "Email or mobile and password is required");
+  const { mobile, password } = req.body;
+  if (!mobile || !password)
+    throw new ApiError(404, "Mobile and password is required");
 
-  const user = await User.findOne({
-    $or: [{ email }, { mobile }],
-  });
+  const user = await User.findOne({mobile});
   if (!user) throw new ApiError(404, "User not exist");
 
   const token = user.generateAccessToken();

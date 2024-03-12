@@ -13,8 +13,8 @@ const friendModel = new Schema({
     },
     status:{
         type: String,
-        required: true,
-        emun: ["Pending","Accepted","Rejected"]
+        emun: ["Pending","Accepted","Rejected"],
+        default: "Pending",
     },
     acceptedDate:Date
 },{timestamps:true})

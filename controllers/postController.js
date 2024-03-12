@@ -21,5 +21,9 @@ const createPost = asyncHandler(async(req,res)=>{
         new ApiResponse(201,"Post created successfully",postDetails)
     )
 })
-
+const getPosts = asyncHandler(async(req,res)=>{
+    const posts = await Post.aggregate([
+        {}
+    ])
+})
 export {createPost}

@@ -10,6 +10,7 @@ const sendRequest = asyncHandler(async (req, res) => {
       400,
       "The userId whome trying to send request is required"
     );
+    if(sentTo == req.userData?._id) throw new ApiError(400,"Can't send request to own")
 
   const isSent = await Friend.findOne({ sentBy: req.userData?._id, sentTo ,$or:[{status:"Pending"},{status:"Accepted"}]});
   if (isSent) throw new ApiError(400, "Request already sent");
@@ -44,10 +45,8 @@ const rejectResquest = asyncHandler(async (req, res) => {
       "The userId whome trying to reject request is required"
     );
 
-//   const isSent = await Friend.findOne({ sentBy: req.userData?._id, sentTo,status:"Accepted"});
-//   if (isSent) throw new ApiError(400, "Already friend");
-
-  await Friend.findOneAndUpdate({sentBy: req.userData?._id, sentTo,status:"Pending"},{status:"Rejected"})
+  const isPending = await Friend.findOneAndUpdate({sentBy: req.userData?._id, sentTo,status:"Pending"},{status:"Rejected"})
+  if(!isPending) throw new ApiError(404,"No Pending request")
   return res.status(200).json(new ApiResponse(200, "Friend request rejected", {}));
 });
 

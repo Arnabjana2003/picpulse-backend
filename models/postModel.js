@@ -11,14 +11,14 @@ const postSchema = new Schema({
         ref: "User",
         required: [true,"User id is required"]
     },
-    likes:{
-        type: Number,
-        default: 0
-    },
-    comments:{
-        type: Number,
-        default: 0
-    },
+    // likes:{
+    //     type: Number,
+    //     default: 0
+    // },
+    // comments:{
+    //     type: Number,
+    //     default: 0
+    // },
 },
 {
     timestamps: true

@@ -19,9 +19,6 @@ const userSchema = new Schema(
       type: Number,
       length: [10, "A valid 10 digits mobile number is required"],
     },
-    email: {
-      type: String,
-    },
     password: {
       type: String,
       required: true,
