@@ -12,7 +12,13 @@ app.get("/",(req,res)=>{
 
 import postRouter from "./routes/postRouter.js"
 import userRouter from "./routes/userRouter.js"
+import likeRouter from "./routes/likeRouter.js"
+import friendRouter from "./routes/friendRouter.js"
+import commentRouter from "./routes/commentRouter.js"
 app.use("/api/v1/user",userRouter)
 app.use("/api/v1/post",postRouter)
+app.use("/api/v1/like",likeRouter)
+app.use("/api/v1/friend",friendRouter)
+app.use("/api/v1/comment",commentRouter)
 
 export {app}
