@@ -6,16 +6,6 @@ import asyncHandler from "../utils/asyncHandler.js";
 const createUser = asyncHandler(async (req, res) => {
   console.log(req.body);
   const { fullName, mobile, password, dob, gender } = req.body;
-  console.log(
-    "fullname:",
-    fullName,
-    "mobile",
-    mobile,
-    "password",
-    password,
-    dob,
-    gender
-  );
 
   if (!fullName || !mobile || !password || !dob || !gender)
     throw new ApiError(400, "All fields are required");
@@ -144,6 +134,7 @@ const deleteCoverImage = asyncHandler(async (req, res) => {
 });
 
 const getFeeds = asyncHandler(async (req, res) => {
+  console.log("query: ",req.query)
   console.log("userid",req.userData?._id,"done")
   const feeds = await User.aggregate([
     {
@@ -220,7 +211,16 @@ const getFeeds = asyncHandler(async (req, res) => {
             }
           },
           {
+            $lookup:{
+              from:"comments",
+              foreignField:"postId",
+              localField:"_id",
+              as:"comments"
+            }
+          },
+          {
             $addFields:{
+              commentsCount: {$size:"$comments"},
               likesCount: {$size: "$likes"},
               isLiked: {
                 $cond:{
@@ -233,7 +233,8 @@ const getFeeds = asyncHandler(async (req, res) => {
           },
           {
             $project:{
-              likes:0
+              likes:0,
+              comments:0
             }
           }
         ]
@@ -279,7 +280,16 @@ const getFeeds = asyncHandler(async (req, res) => {
             }
           },
           {
+            $lookup:{
+              from:"comments",
+              foreignField:"postId",
+              localField:"_id",
+              as:"comments"
+            }
+          },
+          {
             $addFields:{
+              commentsCount: {$size:"$comments"},
               likesCount: {$size: "$likes"},
               isLiked: {
                 $cond:{
@@ -292,7 +302,8 @@ const getFeeds = asyncHandler(async (req, res) => {
           },
           {
             $project:{
-              likes:0
+              likes:0,
+              comments:0
             }
           }
         ]
@@ -338,7 +349,16 @@ const getFeeds = asyncHandler(async (req, res) => {
             }
           },
           {
+            $lookup:{
+              from:"comments",
+              foreignField:"postId",
+              localField:"_id",
+              as:"comments"
+            }
+          },
+          {
             $addFields:{
+              commentsCount: {$size:"$comments"},
               likesCount: {$size: "$likes"},
               isLiked: {
                 $cond:{
@@ -351,7 +371,8 @@ const getFeeds = asyncHandler(async (req, res) => {
           },
           {
             $project:{
-              likes: 0
+              likes: 0,
+              comments:0
             }
           }
         ]
