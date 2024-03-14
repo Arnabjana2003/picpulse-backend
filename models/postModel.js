@@ -2,9 +2,13 @@ import mongoose, { Schema } from "mongoose";
 
 const postSchema = new Schema({
     about: String,
-    content:{
-        type:String, //url
+    contentUrl:{
+        type:String, //appwrite url
         required: [true,"Content link is required"],
+    },
+    contentId:{
+        type:String, //appwrite id
+        required: [true,"Content id is required"],
     },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
