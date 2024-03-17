@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import User from "../models/userModel.js";
 import ApiError from "../utils/apiError.js";
 import ApiResponse from "../utils/apiResponse.js";
@@ -91,7 +92,7 @@ const updateProfileImage = asyncHandler(async (req, res) => {
   );
   return res
     .status(200)
-    .json(new ApiResponse(200, "Photo updated successfully"), {});
+    .json(new ApiResponse(200, "Photo updated successfully",{}));
 });
 
 const deleteProfileImage = asyncHandler(async (req, res) => {
@@ -103,7 +104,7 @@ const deleteProfileImage = asyncHandler(async (req, res) => {
   );
   return res
     .status(200)
-    .json(new ApiResponse(200, "Photo updated successfully"), {});
+    .json(new ApiResponse(200, "Photo updated successfully",{}));
 });
 
 const updateCoverImage = asyncHandler(async (req, res) => {
@@ -118,7 +119,7 @@ const updateCoverImage = asyncHandler(async (req, res) => {
   );
   return res
     .status(200)
-    .json(new ApiResponse(200, "Photo updated successfully"), {});
+    .json(new ApiResponse(200, "Photo updated successfully",{}));
 });
 
 const deleteCoverImage = asyncHandler(async (req, res) => {
@@ -130,12 +131,12 @@ const deleteCoverImage = asyncHandler(async (req, res) => {
   );
   return res
     .status(200)
-    .json(new ApiResponse(200, "Photo updated successfully"), {});
+    .json(new ApiResponse(200, "Photo updated successfully",{}));
 });
 
 const getFeeds = asyncHandler(async (req, res) => {
-  console.log("query: ",req.query)
-  console.log("userid",req.userData?._id,"done")
+  console.log("query: ", req.query);
+  console.log("userid", req.userData?._id, "done");
   const feeds = await User.aggregate([
     {
       $match: {
@@ -148,12 +149,276 @@ const getFeeds = asyncHandler(async (req, res) => {
         foreignField: "sentBy",
         localField: "_id",
         as: "friendsByUser",
-        pipeline:[
+        pipeline: [
           {
-            $match:{status: "Accepted"}
+            $match: { status: "Accepted" },
           },
-          {$project:{
-            sentTo:1
+          {
+            $project: {
+              sentTo: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $lookup: {
+        from: "friends",
+        foreignField: "sentTo",
+        localField: "_id",
+        as: "friendsToUser",
+        pipeline: [
+          {
+            $match: { status: "Accepted" },
+          },
+        ],
+      },
+    },
+    {
+      $lookup: {
+        from: "posts",
+        foreignField: "userId",
+        localField: "friendsByUser.sentTo",
+        as: "posts1",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              foreignField: "_id",
+              localField: "userId",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullName: 1,
+                    gender: 1,
+                    profileImageLink: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $arrayElemAt: ["$owner", 0],
+              },
+            },
+          },
+          {
+            $lookup: {
+              from: "likes",
+              foreignField: "post",
+              localField: "_id",
+              as: "likes",
+            },
+          },
+          {
+            $lookup: {
+              from: "comments",
+              foreignField: "postId",
+              localField: "_id",
+              as: "comments",
+            },
+          },
+          {
+            $addFields: {
+              commentsCount: { $size: "$comments" },
+              likesCount: { $size: "$likes" },
+              isLiked: {
+                $cond: {
+                  if: { $in: [req.userData?._id, "$likes"] },
+                  then: true,
+                  else: false,
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              likes: 0,
+              comments: 0,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $lookup: {
+        from: "posts",
+        foreignField: "userId",
+        localField: "friendsToUser.sentBy",
+        as: "posts2",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              foreignField: "_id",
+              localField: "userId",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullName: 1,
+                    gender: 1,
+                    profileImageLink: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $arrayElemAt: ["$owner", 0],
+              },
+            },
+          },
+          {
+            $lookup: {
+              from: "likes",
+              foreignField: "post",
+              localField: "_id",
+              as: "likes",
+            },
+          },
+          {
+            $lookup: {
+              from: "comments",
+              foreignField: "postId",
+              localField: "_id",
+              as: "comments",
+            },
+          },
+          {
+            $addFields: {
+              commentsCount: { $size: "$comments" },
+              likesCount: { $size: "$likes" },
+              isLiked: {
+                $cond: {
+                  if: { $in: [req.userData?._id, "$likes"] },
+                  then: true,
+                  else: false,
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              likes: 0,
+              comments: 0,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $lookup: {
+        from: "posts",
+        foreignField: "userId",
+        localField: "_id",
+        as: "posts3",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              foreignField: "_id",
+              localField: "userId",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullName: 1,
+                    gender: 1,
+                    profileImageLink: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $arrayElemAt: ["$owner", 0],
+              },
+            },
+          },
+          {
+            $lookup: {
+              from: "likes",
+              foreignField: "post",
+              localField: "_id",
+              as: "likes",
+            },
+          },
+          {
+            $lookup: {
+              from: "comments",
+              foreignField: "postId",
+              localField: "_id",
+              as: "comments",
+            },
+          },
+          {
+            $addFields: {
+              commentsCount: { $size: "$comments" },
+              likesCount: { $size: "$likes" },
+              isLiked: {
+                $cond: {
+                  if: { $in: [req.userData?._id, "$likes.user"] },
+                  then: true,
+                  else: false,
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              likes: 0,
+              comments: 0,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        feeds: { $concatArrays: ["$posts1", "$posts2", "$posts3"] },
+      },
+    },
+    {
+      $project: {
+        feeds: 1,
+      },
+    },
+  ]);
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Feeds fetched successfully", feeds[0]));
+});
+
+const viewProfile = asyncHandler(async (req, res) => {
+  const { userId } = req.body;
+  if (!userId)
+    throw new ApiError(
+      400,
+      "User id is required of which profile view is needed"
+    );
+  const data = await User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(userId),
+      },
+    },
+    {
+      $lookup: {
+        from: "friends",
+        foreignField: "sentBy",
+        localField: "_id",
+        as: "sentByUser",
+        pipeline:[
+          {$match: {
+            status: "Accepted"
           }}
         ]
       },
@@ -163,235 +428,103 @@ const getFeeds = asyncHandler(async (req, res) => {
         from: "friends",
         foreignField: "sentTo",
         localField: "_id",
-        as: "friendsToUser",
+        as: "sentToUser",
         pipeline:[
-          {
-            $match:{status: "Accepted"}
-          }
+          {$match: {
+            status: "Accepted"
+          }}
         ]
       },
     },
     {
-      $lookup:{
-        from: "posts",
-        foreignField: "userId",
-        localField: "friendsByUser.sentTo",
-        as:"posts1",
-        pipeline:[
-          {
-            $lookup:{
-              from: "users",
-              foreignField: "_id",
-              localField: "userId",
-              as:"owner",
-              pipeline:[
-                {
-                  $project: {
-                    fullName:1,
-                    gender:1,
-                    profileImageLink:1
-                  }
-                },
-              ]
-            }
-          },
-          {
-                  $addFields:{
-                    owner: {
-                      $arrayElemAt: ["$owner",0]
-                    }
-                  }
-                },
-          {
-            $lookup:{
-              from:"likes",
-              foreignField: "post",
-              localField: "_id",
-              as: "likes"
-            }
-          },
-          {
-            $lookup:{
-              from:"comments",
-              foreignField:"postId",
-              localField:"_id",
-              as:"comments"
-            }
-          },
-          {
-            $addFields:{
-              commentsCount: {$size:"$comments"},
-              likesCount: {$size: "$likes"},
-              isLiked: {
-                $cond:{
-                  if: {$in:[req.userData?._id,"$likes"]},
-                  then: true,
-                  else: false
-                }
-              }
-            }
-          },
-          {
-            $project:{
-              likes:0,
-              comments:0
-            }
-          }
-        ]
-      }
-    },
-    {
-      $lookup:{
-        from: "posts",
-        foreignField: "userId",
-        localField: "friendsToUser.sentBy",
-        as:"posts2",
-        pipeline:[
-          {
-            $lookup:{
-              from: "users",
-              foreignField: "_id",
-              localField: "userId",
-              as:"owner",
-              pipeline:[
-                {
-                  $project: {
-                    fullName:1,
-                    gender:1,
-                    profileImageLink:1
-                  }
-                },
-              ]
-            }
-          },
-          {
-                  $addFields:{
-                    owner: {
-                      $arrayElemAt: ["$owner",0]
-                    }
-                  }
-                },
-          {
-            $lookup:{
-              from:"likes",
-              foreignField: "post",
-              localField: "_id",
-              as: "likes"
-            }
-          },
-          {
-            $lookup:{
-              from:"comments",
-              foreignField:"postId",
-              localField:"_id",
-              as:"comments"
-            }
-          },
-          {
-            $addFields:{
-              commentsCount: {$size:"$comments"},
-              likesCount: {$size: "$likes"},
-              isLiked: {
-                $cond:{
-                  if: {$in:[req.userData?._id,"$likes"]},
-                  then: true,
-                  else: false
-                }
-              }
-            }
-          },
-          {
-            $project:{
-              likes:0,
-              comments:0
-            }
-          }
-        ]
-      }
-    },
-    {
-      $lookup:{
+      $lookup: {
         from: "posts",
         foreignField: "userId",
         localField: "_id",
-        as:"posts3",
-        pipeline:[
+        as: "posts",
+        pipeline: [
           {
-            $lookup:{
+            $lookup: {
               from: "users",
               foreignField: "_id",
               localField: "userId",
-              as:"owner",
-              pipeline:[
+              as: "owner",
+              pipeline: [
                 {
                   $project: {
-                    fullName:1,
-                    gender:1,
-                    profileImageLink:1
-                  }
+                    fullName: 1,
+                    gender: 1,
+                    profileImageLink: 1,
+                  },
                 },
-              ]
-            }
+              ],
+            },
           },
           {
-                  $addFields:{
-                    owner: {
-                      $arrayElemAt: ["$owner",0]
-                    }
-                  }
-                },
+            $addFields: {
+              owner: {
+                $arrayElemAt: ["$owner", 0],
+              },
+            },
+          },
           {
-            $lookup:{
-              from:"likes",
+            $lookup: {
+              from: "likes",
               foreignField: "post",
               localField: "_id",
-              as: "likes"
-            }
+              as: "likes",
+            },
           },
           {
-            $lookup:{
-              from:"comments",
-              foreignField:"postId",
-              localField:"_id",
-              as:"comments"
-            }
+            $lookup: {
+              from: "comments",
+              foreignField: "postId",
+              localField: "_id",
+              as: "comments",
+            },
           },
           {
-            $addFields:{
-              commentsCount: {$size:"$comments"},
-              likesCount: {$size: "$likes"},
+            $addFields: {
+              commentsCount: { $size: "$comments" },
+              likesCount: { $size: "$likes" },
               isLiked: {
-                $cond:{
-                  if: {$in:[req.userData?._id,"$likes.user"]},
+                $cond: {
+                  if: { $in: [req.userData?._id, "$likes.user"] },
                   then: true,
-                  else: false
-                }
-              }
-            }
+                  else: false,
+                },
+              },
+            },
           },
           {
-            $project:{
+            $project: {
               likes: 0,
-              comments:0
-            }
-          }
-        ]
-      }
+              comments: 0,
+            },
+          },
+        ],
+      },
     },
     {
-      $addFields:{
-        feeds: {$concatArrays: ["$posts1","$posts2","$posts3"]}
-      }
+      $addFields: {
+        friendsCount: {
+          $size: { $concatArrays: ["$sentToUser", "$sentByUser"] },
+        },
+      },
     },
     {
       $project: {
-        feeds:1
-      }
+        password: 0,
+        accessToken: 0,
+        sentByUser: 0,
+        sentToUser: 0,
+      },
     },
   ]);
+
   return res
-  .status(200)
-  .json(new ApiResponse(200,"Feeds fetched successfully",feeds[0]))
+    .status(200)
+    .json(new ApiResponse(200, "user profile fetched", data));
 });
 export {
   createUser,
@@ -402,5 +535,6 @@ export {
   deleteProfileImage,
   updateCoverImage,
   deleteCoverImage,
-  getFeeds
+  getFeeds,
+  viewProfile,
 };
