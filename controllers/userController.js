@@ -32,13 +32,16 @@ const createUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, "account created successfully", user));
 });
 
-const loginUser = asyncHandler(async (req, res) => {
+const loginUser = asyncHandler(async (req, res) => {  
   const { mobile, password } = req.body;
   if (!mobile || !password)
     throw new ApiError(404, "Mobile and password is required");
 
   const user = await User.findOne({ mobile });
   if (!user) throw new ApiError(404, "User not exist");
+  const isPasswordCorrect = await user.isPasswordCorrect(password)
+  console.log(isPasswordCorrect)
+  if(!isPasswordCorrect) throw new ApiError(400,"Wrong password entered")
 
   const token = user.generateAccessToken();
   if (!token)
