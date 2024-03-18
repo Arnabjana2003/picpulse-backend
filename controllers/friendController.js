@@ -114,7 +114,7 @@ const suggestedFriends = asyncHandler(async(req,res)=>{
       {
         $match: {
           $and: [
-            { sentTo: req.userData._id },
+            { sentTo: req?.userData?._id },
             { status: "Pending" },
           ],
         },

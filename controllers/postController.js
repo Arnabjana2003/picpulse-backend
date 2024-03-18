@@ -5,7 +5,7 @@ import ApiResponse from "../utils/apiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js"
 
 const createPost = asyncHandler(async(req,res)=>{
-    if(!req.userData && !req.userData._id) throw new ApiError(400,"User is not authenticated")
+    if(!req?.userData && !req?.userData?._id) throw new ApiError(400,"User is not authenticated")
 
     const {about,contentId,contentUrl} = req.body;
     if(!contentId && !contentUrl) throw new ApiError(400,"Content must be provided")

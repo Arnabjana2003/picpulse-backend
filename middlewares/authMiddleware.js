@@ -12,8 +12,13 @@ const auth = asyncHandler(async(req,res,next)=>{
     
     const decodedValue = jwt.verify(accessToken,config.accessTokenSecret)
     if(!decodedValue) throw new ApiError(400,"Failed to decode accesstoken")
+    // console.log({decodedValue})
 
-    const userData = await User.findById(decodedValue._id).select("-password -accessToken")
+    const userData = await User.findById(decodedValue._id).select(
+        "-password -refreshToken"
+      );
+      // console.log(req.userData,"and,",userData)
+      if (!userData) throw new ApiError(401, "Invalid access token");
 
     req.userData = userData,
     next()
