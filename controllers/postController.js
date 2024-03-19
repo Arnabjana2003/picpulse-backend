@@ -72,8 +72,24 @@ const viewPost = asyncHandler(async(req,res)=>{
                         }
                     },
                     {
+                        $lookup:{
+                            from:"likes",
+                            foreignField:"comment",
+                            localField:"_id",
+                            as:"likes",
+                        }
+                    },
+                    {
                         $addFields:{
-                            commenter: {$first: "$commenter"}
+                            commenter: {$first: "$commenter"},
+                            likesCount:{$size:"$likes"},
+                            isLiked:{
+                                $cond:{
+                                    if:{$in:[req?.userData?._id,"$likes.user"]},
+                                    then:true,
+                                    else:false
+                                }
+                            }
                         }
                     },
                     {
@@ -81,7 +97,9 @@ const viewPost = asyncHandler(async(req,res)=>{
                             content:1,
                             commenter:1,
                             createdAt:1,
-                            updatedAt:1
+                            updatedAt:1,
+                            likesCount:1,
+                            isLiked:1,
                         }
                     }
                 ]

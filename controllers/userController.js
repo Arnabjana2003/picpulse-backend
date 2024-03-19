@@ -299,7 +299,7 @@ const getFeeds = asyncHandler(async (req, res) => {
               likesCount: { $size: "$likes" },
               isLiked: {
                 $cond: {
-                  if: { $in: [req.userData?._id, "$likes"] },
+                  if: { $in: [req?.userData?._id, "$likes"] },
                   then: true,
                   else: false,
                 },
