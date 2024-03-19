@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import User from "../models/userModel.js";
+import Post from "../models/postModel.js";
 import ApiError from "../utils/apiError.js";
 import ApiResponse from "../utils/apiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
@@ -32,16 +33,16 @@ const createUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, "account created successfully", user));
 });
 
-const loginUser = asyncHandler(async (req, res) => {  
+const loginUser = asyncHandler(async (req, res) => {
   const { mobile, password } = req.body;
   if (!mobile || !password)
     throw new ApiError(404, "Mobile and password is required");
 
   const user = await User.findOne({ mobile });
   if (!user) throw new ApiError(404, "User not exist");
-  const isPasswordCorrect = await user.isPasswordCorrect(password)
-  console.log(isPasswordCorrect)
-  if(!isPasswordCorrect) throw new ApiError(400,"Wrong password entered")
+  const isPasswordCorrect = await user.isPasswordCorrect(password);
+  console.log(isPasswordCorrect);
+  if (!isPasswordCorrect) throw new ApiError(400, "Wrong password entered");
 
   const token = user.generateAccessToken();
   if (!token)
@@ -93,9 +94,20 @@ const updateProfileImage = asyncHandler(async (req, res) => {
     { _id: req.userData._id },
     { profileImageLink, profileImageId }
   );
+  await Post.deleteOne({
+    userId: req.userData._id,
+    type: "changed profile image",
+  });
+  await Post.create({
+    userId: req.userData._id,
+    type: "changed profile image",
+    about: "",
+    contentId: profileImageId,
+    contentUrl: profileImageLink,
+  });
   return res
     .status(200)
-    .json(new ApiResponse(200, "Photo updated successfully",{}));
+    .json(new ApiResponse(200, "Photo updated successfully", {}));
 });
 
 const deleteProfileImage = asyncHandler(async (req, res) => {
@@ -107,7 +119,7 @@ const deleteProfileImage = asyncHandler(async (req, res) => {
   );
   return res
     .status(200)
-    .json(new ApiResponse(200, "Photo updated successfully",{}));
+    .json(new ApiResponse(200, "Photo updated successfully", {}));
 });
 
 const updateCoverImage = asyncHandler(async (req, res) => {
@@ -120,9 +132,20 @@ const updateCoverImage = asyncHandler(async (req, res) => {
     { _id: req.userData._id },
     { coverImageLink, coverImageId }
   );
+  await Post.deleteOne({
+    userId: req.userData._id,
+    type: "changed cover image",
+  });
+  await Post.create({
+    userId: req.userData._id,
+    type: "changed cover image",
+    about: "",
+    contentId: coverImageId,
+    contentUrl: coverImageLink,
+  });
   return res
     .status(200)
-    .json(new ApiResponse(200, "Photo updated successfully",{}));
+    .json(new ApiResponse(200, "Photo updated successfully", {}));
 });
 
 const deleteCoverImage = asyncHandler(async (req, res) => {
@@ -134,7 +157,7 @@ const deleteCoverImage = asyncHandler(async (req, res) => {
   );
   return res
     .status(200)
-    .json(new ApiResponse(200, "Photo updated successfully",{}));
+    .json(new ApiResponse(200, "Photo updated successfully", {}));
 });
 
 const getFeeds = asyncHandler(async (req, res) => {
@@ -389,6 +412,14 @@ const getFeeds = asyncHandler(async (req, res) => {
         feeds: { $concatArrays: ["$posts1", "$posts2", "$posts3"] },
       },
     },
+    { $unwind: "$feeds" }, 
+    { $sort: { "feeds.createdAt": -1 } }, 
+    {
+      $group: {
+        _id: "$_id",
+        feeds: { $push: "$feeds" },
+      },
+    },
     {
       $project: {
         feeds: 1,
@@ -419,11 +450,13 @@ const viewProfile = asyncHandler(async (req, res) => {
         foreignField: "sentBy",
         localField: "_id",
         as: "sentByUser",
-        pipeline:[
-          {$match: {
-            status: "Accepted"
-          }}
-        ]
+        pipeline: [
+          {
+            $match: {
+              status: "Accepted",
+            },
+          },
+        ],
       },
     },
     {
@@ -432,11 +465,13 @@ const viewProfile = asyncHandler(async (req, res) => {
         foreignField: "sentTo",
         localField: "_id",
         as: "sentToUser",
-        pipeline:[
-          {$match: {
-            status: "Accepted"
-          }}
-        ]
+        pipeline: [
+          {
+            $match: {
+              status: "Accepted",
+            },
+          },
+        ],
       },
     },
     {
@@ -498,6 +533,9 @@ const viewProfile = asyncHandler(async (req, res) => {
                 },
               },
             },
+          },
+          {
+            $sort:{"createdAt":-1}
           },
           {
             $project: {
