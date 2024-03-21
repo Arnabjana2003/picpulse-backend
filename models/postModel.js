@@ -6,7 +6,7 @@ const postSchema = new Schema({
         type:String, //appwrite url
         required: [true,"Content link is required"],
     },
-    type:String,
+    type:String, //update profile or cover
     contentId:{
         type:String, //appwrite id
         required: [true,"Content id is required"],

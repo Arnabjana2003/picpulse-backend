@@ -22,7 +22,7 @@ const addComment = asyncHandler(async(req,res)=>{
 
     return res
     .status(200)
-    .json(new ApiResponse(201,"Comment added"))
+    .json(new ApiResponse(201,"Comment added",addedComment))
 })
 
 const updateComment = asyncHandler(async(req,res)=>{
