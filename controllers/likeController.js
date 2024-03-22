@@ -9,12 +9,21 @@ const like = asyncHandler(async (req, res) => {
   if (!postId && !commentId)
     throw new ApiError(400, "post or comment id not found");
 
-  const isLiked = await Like.findOne({
-    user: req.userData._id,
-    $or: [{ post: postId }, { comment: commentId }],
-  });
-  console.log({postId,commentId,isLiked})
-  if (isLiked) throw new ApiError(400, "User already liked");
+  if(!commentId){
+    const isPostLiked = await Like.findOne({
+      user: req.userData._id,
+      post: postId,
+    });
+    console.log({postId,commentId,isLiked})
+    if (isPostLiked) throw new ApiError(400, "User already liked");
+  }else{
+    const isCommentLiked = await Like.findOne({
+      user: req.userData._id,
+      comment: commentId,
+    });
+    console.log({postId,commentId,isLiked})
+    if (isCommentLiked) throw new ApiError(400, "User already liked");
+  }
 
   await Like.create({
     user: req.userData._id,
