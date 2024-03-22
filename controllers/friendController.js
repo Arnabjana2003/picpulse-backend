@@ -3,6 +3,7 @@ import ApiError from "../utils/apiError.js";
 import ApiResponse from "../utils/apiResponse.js";
 import Friend from "../models/friendModel.js";
 import User from "../models/userModel.js";
+import mongoose from "mongoose";
 
 const sendRequest = asyncHandler(async (req, res) => {
   const { sentTo } = req.body;
@@ -78,63 +79,18 @@ const rejectResquest = asyncHandler(async (req, res) => {
 });
 
 const suggestedFriends = asyncHandler(async (req, res) => {
-  const allFriends = await User.aggregate([
+  const userFriends = await Friend.find({$or:[{sentBy:req.userData._id},{sentTo:req.userData._id}],status:"Accepted"})
+  let friendList =  userFriends.map(friend => friend.sentTo.equals(req.userData._id) ? friend.sentBy : friend.sentTo);
+  const result = await User.aggregate([
     {
       $match: {
-        _id: req.userData?._id,
-      },
-    },
-    {
-      $lookup: {
-        from: "friends",
-        localField: "_id",
-        foreignField: "sentBy",
-        as: "reqSentBy",
-      },
-    },
-    {
-      $lookup: {
-        from: "friends",
-        localField: "_id",
-        foreignField: "sentTo",
-        as: "reqSentTo",
-      },
-    },
-    {
-      $project: {
-        reqSentBy: 1,
-        reqSentTo: 1,
-      },
-    },
+        $and:[
+          {_id: { $nin: friendList }},
+          {_id: {$ne: req.userData._id}}
+        ]
+      }
+    }
   ]);
-  const allUsers = await User.find({ _id: { $ne: req.userData._id } });
-  const suggestedFriendsList1 =
-    allFriends[0]?.reqSentBy &&
-    allUsers.filter((user) =>
-      allFriends[0].reqSentBy.some((friend) => user._id == friend.sentBy)
-    );
-  const suggestedFriendsList2 =
-    allFriends[0]?.reqSentTo &&
-    allUsers.filter((user) =>
-      allFriends[0].reqSentTo.some((friend) => user._id == friend.sentTo)
-    );
-  let result;
-  if (!allFriends[0].reqSentTo.length && !allFriends[0].reqSentBy.length) {
-    result = allUsers;
-  } else {
-    result = [...suggestedFriendsList1, ...suggestedFriendsList2];
-  }
-  // const sentByArr = allFriends[0].reqSentBy.map((fnd)=>fnd.sentBy)
-  // const sentToArr = allFriends[0].reqSentTo.map((fnd)=>fnd.sentTo)
-  // console.log({sentByArr,sentToArr})
-  // const friends = [...new Set([...sentByArr, ...sentToArr])];
-  // // console.log({friends})
-  // const allUsers = await User.find({_id:{$ne:req.userData._id}})
-  // // console.log("friList",friends)
-  // const suggestedFriends = allUsers.filter(user=>friends.some(fnd=>fnd == user._id))
-  // console.log("users",allUsers,"frinds",friends)
-  // const result = friends.length?suggestedFriends:allUsers
-  // console.log(result)
   return res.status(200).json(new ApiResponse(200, "", result));
 });
 
