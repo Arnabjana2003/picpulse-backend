@@ -14,14 +14,12 @@ const like = asyncHandler(async (req, res) => {
       user: req.userData._id,
       post: postId,
     });
-    console.log({postId,commentId,isLiked})
     if (isPostLiked) throw new ApiError(400, "User already liked");
   }else{
     const isCommentLiked = await Like.findOne({
       user: req.userData._id,
       comment: commentId,
     });
-    console.log({postId,commentId,isLiked})
     if (isCommentLiked) throw new ApiError(400, "User already liked");
   }
 

@@ -7,8 +7,6 @@ const auth = asyncHandler(async (req, res, next) => {
   const accessToken =
     req.cookies?.accessToken ||
     req.header("Authorization")?.replace("Bearer ", "");
-
-    console.log(accessToken)
   if (!accessToken) throw new ApiError(401, "accessToken not found in request");
 
   //verify the access token from jwt
