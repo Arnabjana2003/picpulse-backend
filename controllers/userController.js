@@ -161,8 +161,7 @@ const deleteCoverImage = asyncHandler(async (req, res) => {
 });
 
 const getFeeds = asyncHandler(async (req, res) => {
-  console.log("query: ", req.query);
-  console.log("userid", req.userData?._id, "done");
+  console.log(req.userData?._id)
   const feeds = await User.aggregate([
     {
       $match: {
@@ -253,7 +252,7 @@ const getFeeds = asyncHandler(async (req, res) => {
               likesCount: { $size: "$likes" },
               isLiked: {
                 $cond: {
-                  if: { $in: [req.userData?._id, "$likes"] },
+                  if: { $in: [req.userData._id, "$likes.user"] },
                   then: true,
                   else: false,
                 },
@@ -322,7 +321,7 @@ const getFeeds = asyncHandler(async (req, res) => {
               likesCount: { $size: "$likes" },
               isLiked: {
                 $cond: {
-                  if: { $in: [req?.userData?._id, "$likes"] },
+                  if: { $in: [req?.userData?._id, "$likes.user"] },
                   then: true,
                   else: false,
                 },
