@@ -13,7 +13,7 @@ const like = asyncHandler(async (req, res) => {
     user: req.userData._id,
     $or: [{ post: postId }, { comment: commentId }],
   });
-  console.log(isLiked)
+  console.log({postId,commentId,isLiked})
   if (isLiked) throw new ApiError(400, "User already liked");
 
   await Like.create({
