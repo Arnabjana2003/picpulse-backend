@@ -79,7 +79,7 @@ const rejectResquest = asyncHandler(async (req, res) => {
 });
 
 const suggestedFriends = asyncHandler(async (req, res) => {
-  const userFriends = await Friend.find({$or:[{sentBy:req.userData._id},{sentTo:req.userData._id}],status:"Accepted"})
+  const userFriends = await Friend.find({$or:[{sentBy:req.userData._id},{sentTo:req.userData._id}]})
   let friendList =  userFriends.map(friend => friend.sentTo.equals(req.userData._id) ? friend.sentBy : friend.sentTo);
   const result = await User.aggregate([
     {
