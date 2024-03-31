@@ -94,7 +94,7 @@ const suggestedFriends = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, "", result));
 });
 
-const friendRequest = asyncHandler(async (req, res) => {
+const pendingFriendRequests = asyncHandler(async (req, res) => {
   const requests = await Friend.aggregate([
     {
       $match: {
@@ -153,11 +153,68 @@ const getPendingReqCount = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, "", { pendingRequestCount, pendingCount }));
 });
+
+const getAllFriends = asyncHandler(async(req,res)=>{
+  const userId = req.userData._id
+  const friends = await Friend.aggregate([
+    {
+      $match:{
+        $or:[{sentBy:new mongoose.Types.ObjectId(userId)},{sentTo:new mongoose.Types.ObjectId(userId)}],
+      status:"Accepted"
+      }
+    },
+    {
+      $addFields:{
+        friendId: {
+          $cond:{
+            if: {$eq:["$sentBy",new mongoose.Types.ObjectId(userId)]},
+            then: "$sentTo",
+            else:'$sentBy'
+          }
+        }
+      }
+    },
+    {
+      $lookup:{
+        from:"users",
+        foreignField:"_id",
+        localField:"friendId",
+        as:"details",
+        pipeline:[
+          {
+            $project:{
+              fullName:1,
+              profileImageLink:1,
+            }
+          }
+        ]
+      }
+    },
+    {
+      $addFields:{
+        profileData:{
+          $first: "$details"
+        }
+      }
+    },
+    {
+      $project:{
+        details:0,
+        friendId:0
+      }
+    }
+  ])
+
+  return res
+  .status(200)
+  .json(new ApiResponse(200,"",friends))
+})
 export {
   sendRequest,
   acceptResquest,
   rejectResquest,
   suggestedFriends,
-  friendRequest,
+  pendingFriendRequests,
   getPendingReqCount,
+  getAllFriends
 };

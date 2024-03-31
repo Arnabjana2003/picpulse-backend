@@ -566,6 +566,64 @@ const viewProfile = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, "user profile fetched", data));
 });
+
+const searchUser = asyncHandler(async(req,res)=>{
+  const {query } = req.body
+  if(!query) throw new ApiError(400,'Search query is required')
+
+  const searchResult = await User.find({
+    fullName: { $regex: query, $options: 'i' }
+  },{fullName:1,profileImageLink:1,gender:1})
+
+  const updatedHistory = await User.findOneAndUpdate(
+    {
+      _id:req.userData._id
+    },
+    {
+      $push: {
+        searchHistory: {
+          $each: [query], // Add the new search string
+          $slice: -10 // Keep only the last 10 elements in the array
+        }
+      }
+    },
+    {new:true,
+    projection:{
+      searchHistory:1
+    }}
+  )
+  return res
+  .status(200)
+  .json(new ApiResponse(200,"",{searchResult,updatedHistory}))
+})
+
+const getSearchHistory = asyncHandler(async(req,res)=>{
+  const history = await User.find(
+    {_id:req.userData._id},
+    {searchHistory:1}
+  )
+
+  return res
+  .status(200)
+  .json(new ApiResponse(200,'',history))
+})
+
+const removeHistory = asyncHandler(async(req,res)=>{
+  const {query} = req.body
+  if(!query) throw new ApiError(400,"query is required to remove from history")
+  const isRemoved = await User.findOneAndUpdate(
+    {_id:req.userData._id},
+    {
+      $pull:{
+        searchHistory: query
+      }
+    }
+  )
+    if(!isRemoved) throw new ApiError(500,"Failed to remove from history")
+    return res
+  .status(200)
+  .json(new ApiResponse(200,"removed from history"))
+})
 export {
   createUser,
   loginUser,
@@ -577,4 +635,7 @@ export {
   deleteCoverImage,
   getFeeds,
   viewProfile,
+  searchUser,
+  getSearchHistory,
+  removeHistory
 };

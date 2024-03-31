@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createUser, currentUser, loginUser, logout,updateProfileImage,updateCoverImage,deleteCoverImage,deleteProfileImage, getFeeds,viewProfile } from "../controllers/userController.js";
+import { createUser, currentUser, loginUser, logout,updateProfileImage,updateCoverImage,deleteCoverImage,deleteProfileImage, getFeeds,viewProfile,searchUser,getSearchHistory,removeHistory } from "../controllers/userController.js";
 import auth from "../middlewares/authMiddleware.js"
 
 const router = Router()
@@ -13,5 +13,8 @@ router.route("/deletecoverimage").post(auth,deleteCoverImage)
 router.route("/deleteprofileimage").post(auth,deleteProfileImage)
 router.route("/feeds").get(auth,getFeeds)
 router.route("/viewprofile").post(auth,viewProfile) //ADD AUTH
+router.route("/search").post(auth,searchUser)
+router.route("/searchhistory").get(auth,getSearchHistory)
+router.route("/removehistory").delete(auth,removeHistory)
 
 export default router

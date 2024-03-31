@@ -32,6 +32,7 @@ const userSchema = new Schema(
       required: true,
       emum: ["Male", "Female", "Other"],
     },
+    searchHistory:[String],
     profileImageLink: String,
     profileImageId: String,
     coverImageLink: String,
