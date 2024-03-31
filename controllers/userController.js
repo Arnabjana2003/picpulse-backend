@@ -161,7 +161,7 @@ const deleteCoverImage = asyncHandler(async (req, res) => {
 });
 
 const getFeeds = asyncHandler(async (req, res) => {
-  console.log(req.userData?._id)
+  console.log(req.userData?._id);
   const feeds = await User.aggregate([
     {
       $match: {
@@ -411,8 +411,8 @@ const getFeeds = asyncHandler(async (req, res) => {
         feeds: { $concatArrays: ["$posts1", "$posts2", "$posts3"] },
       },
     },
-    { $unwind: "$feeds" }, 
-    { $sort: { "feeds.createdAt": -1 } }, 
+    { $unwind: "$feeds" },
+    { $sort: { "feeds.createdAt": -1 } },
     {
       $group: {
         _id: "$_id",
@@ -534,7 +534,7 @@ const viewProfile = asyncHandler(async (req, res) => {
             },
           },
           {
-            $sort:{"createdAt":-1}
+            $sort: { createdAt: -1 },
           },
           {
             $project: {
@@ -567,63 +567,123 @@ const viewProfile = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, "user profile fetched", data));
 });
 
-const searchUser = asyncHandler(async(req,res)=>{
-  const {query } = req.body
-  if(!query) throw new ApiError(400,'Search query is required')
+const searchUser = asyncHandler(async (req, res) => {
+  const { query } = req.body;
+  const userId = req.userData._id
+  if (!query) throw new ApiError(400, "Search query is required");
 
-  const searchResult = await User.find({
-    fullName: { $regex: query, $options: 'i' }
-  },{fullName:1,profileImageLink:1,gender:1})
+  // const searchResult = await User.find({
+  //   fullName: { $regex: query, $options: 'i' }
+  // },{fullName:1,profileImageLink:1,gender:1})
+
+  const searchResult = await User.aggregate([
+    {
+      $match: {
+        fullName: { $regex: query, $options: "i" },
+      },
+    },
+    {
+      $lookup:{
+        from:"friends",
+        foreignField:"sentBy",
+        localField:"_id",
+        as:"sentBy",
+        pipeline:[
+          {
+            $match:{
+              sentTo: new mongoose.Types.ObjectId(userId),
+              status:"Accepted"
+            }
+          }
+        ]
+      }
+    },
+    {
+      $lookup:{
+        from:"friends",
+        foreignField:"sentTo",
+        localField:"_id",
+        as:"sentTo",
+        pipeline:[
+          {
+            $match:{
+              sentBy: new mongoose.Types.ObjectId(userId),
+              status:"Accepted"
+            }
+          }
+        ]
+      }
+    },
+    {
+      $addFields:{
+        isFriend:{
+          $cond:{
+            if: {$eq:[{$size:{$concatArrays:["$sentBy","$sentTo"]}},0]},
+            then:false,
+            else:true
+          }
+        }
+      }
+    },
+    { $project:{fullName:1,profileImageLink:1,gender:1,isFriend:1}}
+  ]);
 
   const updatedHistory = await User.findOneAndUpdate(
     {
-      _id:req.userData._id
+      _id: req.userData._id,
     },
     {
       $push: {
         searchHistory: {
           $each: [query], // Add the new search string
-          $slice: -10 // Keep only the last 10 elements in the array
-        }
-      }
+          $slice: -10, // Keep only the last 10 elements in the array
+        },
+      },
     },
-    {new:true,
-    projection:{
-      searchHistory:1
-    }}
-  )
-  return res
-  .status(200)
-  .json(new ApiResponse(200,"",{searchResult,updatedHistory}))
-})
-
-const getSearchHistory = asyncHandler(async(req,res)=>{
-  const history = await User.find(
-    {_id:req.userData._id},
-    {searchHistory:1}
-  )
-
-  return res
-  .status(200)
-  .json(new ApiResponse(200,'',history))
-})
-
-const removeHistory = asyncHandler(async(req,res)=>{
-  const {query} = req.body
-  if(!query) throw new ApiError(400,"query is required to remove from history")
-  const isRemoved = await User.findOneAndUpdate(
-    {_id:req.userData._id},
     {
-      $pull:{
-        searchHistory: query
-      }
+      new: true,
+      projection: {
+        searchHistory: 1,
+      },
     }
-  )
-    if(!isRemoved) throw new ApiError(500,"Failed to remove from history")
-    return res
-  .status(200)
-  .json(new ApiResponse(200,"removed from history"))
-})
+  );
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "", { searchResult, updatedHistory }));
+});
+
+const getSearchHistory = asyncHandler(async (req, res) => {
+  const history = await User.find(
+    { _id: req.userData._id },
+    { searchHistory: 1 }
+  );
+
+  return res.status(200).json(new ApiResponse(200, "", history));
+});
+
+const removeHistory = asyncHandler(async (req, res) => {
+  const { query } = req.body;
+  if (!query)
+    throw new ApiError(400, "query is required to remove from history");
+  const isRemoved = await User.findOneAndUpdate(
+    { _id: req.userData._id },
+    {
+      $pull: {
+        searchHistory: query,
+      },
+    },
+    {
+      new: true,
+      projection: {
+        searchHistory: 1,
+      },
+    }
+  );
+  if (!isRemoved) throw new ApiError(500, "Failed to remove from history");
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "removed from history", isRemoved));
+});
 export {
   createUser,
   loginUser,
@@ -637,5 +697,5 @@ export {
   viewProfile,
   searchUser,
   getSearchHistory,
-  removeHistory
+  removeHistory,
 };
