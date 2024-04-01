@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import User from "../models/userModel.js";
 import Post from "../models/postModel.js";
+import Friend from "../models/friendModel.js";
 import ApiError from "../utils/apiError.js";
 import ApiResponse from "../utils/apiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
@@ -562,9 +563,16 @@ const viewProfile = asyncHandler(async (req, res) => {
     },
   ]);
 
+  const friendStatus = await Friend.findOne({$or:[{$and:[{sentBy:new mongoose.Types.ObjectId(req.userData?._id)},{sentTo:new mongoose.Types.ObjectId(userId)}]},{$and:[{sentTo:new mongoose.Types.ObjectId(req.userData?._id)},{sentBy:new mongoose.Types.ObjectId(userId)}]}]})
+
+  let friendStatusWithCurrentUser;
+  if(!friendStatus) friendStatusWithCurrentUser = 0
+  else if(friendStatus.status == "Accepted") friendStatusWithCurrentUser=3
+  else if(friendStatus.sentBy==userId && friendStatus.status == "Pending") friendStatusWithCurrentUser=2
+  else if(friendStatus.sentTo==userId && friendStatus.status == "Pending") friendStatusWithCurrentUser=1
   return res
     .status(200)
-    .json(new ApiResponse(200, "user profile fetched", data));
+    .json(new ApiResponse(200, "user profile fetched", {...data[0],friendStatus:friendStatusWithCurrentUser}));
 });
 
 const searchUser = asyncHandler(async (req, res) => {
@@ -636,7 +644,7 @@ const searchUser = asyncHandler(async (req, res) => {
         statusWithCurrentUser: {
           $cond: {
             if: {
-              $eq: ["$sentBy.status", "Accepted"],
+              $or:[{$eq: ["$sentBy.status", "Accepted"]},{$eq: ["$sentTo.status", "Accepted"]}],
             },
             then: 3,
             else: {
