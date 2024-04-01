@@ -569,7 +569,7 @@ const viewProfile = asyncHandler(async (req, res) => {
 
 const searchUser = asyncHandler(async (req, res) => {
   const { query } = req.body;
-  const userId = req.userData._id
+  const userId = req.userData._id;
   if (!query) throw new ApiError(400, "Search query is required");
 
   // const searchResult = await User.find({
@@ -583,49 +583,83 @@ const searchUser = asyncHandler(async (req, res) => {
       },
     },
     {
-      $lookup:{
-        from:"friends",
-        foreignField:"sentBy",
-        localField:"_id",
-        as:"sentBy",
-        pipeline:[
+      $lookup: {
+        from: "friends",
+        foreignField: "sentBy",
+        localField: "_id",
+        as: "sentBy",
+        pipeline: [
           {
-            $match:{
+            $match: {
               sentTo: new mongoose.Types.ObjectId(userId),
-              status:"Accepted"
-            }
-          }
-        ]
-      }
+              // status:"Accepted"
+            },
+          },
+        ],
+      },
     },
     {
-      $lookup:{
-        from:"friends",
-        foreignField:"sentTo",
-        localField:"_id",
-        as:"sentTo",
-        pipeline:[
+      $addFields: {
+        sentBy: {
+          $first: "$sentBy",
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: "friends",
+        foreignField: "sentTo",
+        localField: "_id",
+        as: "sentTo",
+        pipeline: [
           {
-            $match:{
+            $match: {
               sentBy: new mongoose.Types.ObjectId(userId),
-              status:"Accepted"
-            }
-          }
-        ]
-      }
+              // status:"Accepted"
+            },
+          },
+        ],
+      },
     },
     {
-      $addFields:{
-        isFriend:{
-          $cond:{
-            if: {$eq:[{$size:{$concatArrays:["$sentBy","$sentTo"]}},0]},
-            then:false,
-            else:true
-          }
-        }
-      }
+      $addFields: {
+        sentTo: {
+          $first: "$sentTo",
+        },
+      },
     },
-    { $project:{fullName:1,profileImageLink:1,gender:1,isFriend:1}}
+    {
+      $project: {
+        fullName: 1,
+        profileImageLink: 1,
+        gender: 1,
+        statusWithCurrentUser: {
+          $cond: {
+            if: {
+              $eq: ["$sentBy.status", "Accepted"],
+            },
+            then: 3,
+            else: {
+              $cond: {
+                if: {
+                  $eq: ["$sentBy.status", "Pending"],
+                },
+                then: 2,
+                else: {
+                  $cond: {
+                    if: {
+                      $eq: ["$sentTo.status", "Pending"],
+                    },
+                    then: 1,
+                    else: 0,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   ]);
 
   const updatedHistory = await User.findOneAndUpdate(

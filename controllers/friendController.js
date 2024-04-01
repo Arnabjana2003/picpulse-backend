@@ -29,20 +29,43 @@ const sendRequest = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, "Friend request sent", {}));
 });
 
+const unsentRequest = asyncHandler(async (req, res) => {
+  const {sentTo} = req.body
+  if (!sentTo)
+    throw new ApiError(
+      400,
+      "The userId whome trying to send request is required"
+    );
+
+  const isSent = await Friend.findOne({
+    sentTo,
+    sentBy: req.userData._id,
+    status: "Pending",
+  });
+  if (!isSent) throw new ApiError(404, "No pending request is found");
+  const isUnsent = await Friend.findOneAndDelete({
+    sentTo,
+    sentBy: req.userData._id,
+    status: "Pending",
+  });
+  if (!isUnsent) throw new ApiError(404, "Failed to unsent request");
+  return res.status(200).json(new ApiResponse(200, "Request unsent", {}));
+});
+
 const acceptResquest = asyncHandler(async (req, res) => {
   if (!req.userData) throw new ApiError(401, "User not authenticated");
   const { sentBy } = req.body;
   if (!sentBy)
-  throw new ApiError(
-400,
-"The userId whome trying to accept request is required"
-);
+    throw new ApiError(
+      400,
+      "The userId whome trying to accept request is required"
+    );
 
-const isAccepted = await Friend.findOne({
-  sentTo: req.userData?._id,
-  sentBy,
-  status: "Accepted",
-});
+  const isAccepted = await Friend.findOne({
+    sentTo: req.userData?._id,
+    sentBy,
+    status: "Accepted",
+  });
   if (isAccepted) throw new ApiError(400, "Already friend");
 
   await Friend.findOneAndUpdate(
@@ -79,17 +102,21 @@ const rejectResquest = asyncHandler(async (req, res) => {
 });
 
 const suggestedFriends = asyncHandler(async (req, res) => {
-  const userFriends = await Friend.find({$or:[{sentBy:req.userData._id},{sentTo:req.userData._id}]})
-  let friendList =  userFriends.map(friend => friend.sentTo.equals(req.userData._id) ? friend.sentBy : friend.sentTo);
+  const userFriends = await Friend.find({
+    $or: [{ sentBy: req.userData._id }, { sentTo: req.userData._id }],
+  });
+  let friendList = userFriends.map((friend) =>
+    friend.sentTo.equals(req.userData._id) ? friend.sentBy : friend.sentTo
+  );
   const result = await User.aggregate([
     {
       $match: {
-        $and:[
-          {_id: { $nin: friendList }},
-          {_id: {$ne: req.userData._id}}
-        ]
-      }
-    }
+        $and: [
+          { _id: { $nin: friendList } },
+          { _id: { $ne: req.userData._id } },
+        ],
+      },
+    },
   ]);
   return res.status(200).json(new ApiResponse(200, "", result));
 });
@@ -154,67 +181,131 @@ const getPendingReqCount = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, "", { pendingRequestCount, pendingCount }));
 });
 
-const getAllFriends = asyncHandler(async(req,res)=>{
-  const userId = req.userData._id
+const getAllFriends = asyncHandler(async (req, res) => {
+  const { userId } = req.body;
+  if (!userId)
+    throw new ApiError(400, "user id is required to get all frineds");
   const friends = await Friend.aggregate([
     {
-      $match:{
-        $or:[{sentBy:new mongoose.Types.ObjectId(userId)},{sentTo:new mongoose.Types.ObjectId(userId)}],
-      status:"Accepted"
-      }
+      $addFields: {
+        statusWithCurrentUser: {
+          $cond: {
+            if: {
+              $and: [
+                {
+                  $or: [
+                    {
+                      $eq: [
+                        "$sentBy",
+                        new mongoose.Types.ObjectId(req.userData?._id),
+                      ],
+                    },
+                    {
+                      $eq: [
+                        "$sentTo",
+                        new mongoose.Types.ObjectId(req.userData?._id),
+                      ],
+                    },
+                  ],
+                },
+                { $eq: ["$status", "Accepted"] },
+              ],
+            },
+            then: 3,
+            else: {
+              $cond: {
+                if: {
+                  $and: [
+                    {
+                      $eq: [
+                        "$sentBy",
+                        new mongoose.Types.ObjectId(req.userData?._id),
+                      ],
+                    },
+                    { $eq: ["$status", "Pending"] },
+                  ],
+                },
+                then: 1,
+                else: {
+                  $cond: {
+                    if: {
+                      $and: [
+                        {
+                          $eq: [
+                            "$sentTo",
+                            new mongoose.Types.ObjectId(req.userData?._id),
+                          ],
+                        },
+                        { $eq: ["$status", "Pending"] },
+                      ],
+                    },
+                    then: 2,
+                    else: 0,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     },
     {
-      $addFields:{
+      $match: {
+        $or: [
+          { sentBy: new mongoose.Types.ObjectId(userId) },
+          { sentTo: new mongoose.Types.ObjectId(userId) },
+        ],
+        status: "Accepted",
+      },
+    },
+    {
+      $addFields: {
         friendId: {
-          $cond:{
-            if: {$eq:["$sentBy",new mongoose.Types.ObjectId(userId)]},
+          $cond: {
+            if: { $eq: ["$sentBy", new mongoose.Types.ObjectId(userId)] },
             then: "$sentTo",
-            else:'$sentBy'
-          }
-        }
-      }
+            else: "$sentBy",
+          },
+        },
+      },
     },
     {
-      $lookup:{
-        from:"users",
-        foreignField:"_id",
-        localField:"friendId",
-        as:"details",
-        pipeline:[
+      $lookup: {
+        from: "users",
+        foreignField: "_id",
+        localField: "friendId",
+        as: "details",
+        pipeline: [
           {
-            $project:{
-              fullName:1,
-              profileImageLink:1,
-            }
-          }
-        ]
-      }
+            $project: {
+              fullName: 1,
+              profileImageLink: 1,
+              gender: 1,
+            },
+          },
+        ],
+      },
     },
     {
-      $addFields:{
-        profileData:{
-          $first: "$details"
-        }
-      }
+      $project: {
+        profileData: {
+          $first: "$details",
+        },
+        isFriend: 1,
+        statusWithCurrentUser: 1,
+      },
     },
-    {
-      $project:{
-        details:0,
-        friendId:0
-      }
-    }
-  ])
+  ]);
 
-  return res
-  .status(200)
-  .json(new ApiResponse(200,"",friends))
-})
+  return res.status(200).json(new ApiResponse(200, "", friends));
+});
 export {
   sendRequest,
+  unsentRequest,
   acceptResquest,
   rejectResquest,
   suggestedFriends,
   pendingFriendRequests,
   getPendingReqCount,
-  getAllFriends
+  getAllFriends,
 };
